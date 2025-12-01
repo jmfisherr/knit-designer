@@ -1,0 +1,7 @@
+:root{--bg:#fff;--muted:#666}
+html,body,#__next{height:100%}
+body{font-family:Inter,system-ui,Arial;margin:0;background:var(--bg);color:#111}
+.container{max-width:900px;margin:24px auto;padding:0 16px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.grid{display:grid;gap:2px;border:1px solid #ddd;padding:4px}
+.cell{width:20px;height:20px;border-radius:2px;border:1px solid rgba(0,0,0,0.05);box-sizing:border-box}
