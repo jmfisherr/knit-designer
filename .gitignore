@@ -1,0 +1,32 @@
+# Node modules
+node_modules/
+
+# Next.js build output
+.next/
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+
+# Project data (saved projects, avoid committing)
+data/projects/
+
+# Misc
+coverage/
+*.tgz
