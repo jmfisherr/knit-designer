@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"pages/index.js -> ../components/GridDesigner\":{\"id\":\"pages/index.js -> ../components/GridDesigner\",\"files\":[\"static/chunks/components_GridDesigner_js.js\"]}}"
