@@ -55,6 +55,17 @@ eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpac
 
 /***/ }),
 
+/***/ "jspdf":
+/*!************************!*\
+  !*** external "jspdf" ***!
+  \************************/
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("jspdf");
+
+/***/ }),
+
 /***/ "next/dist/compiled/next-server/pages.runtime.dev.js":
 /*!**********************************************************************!*\
   !*** external "next/dist/compiled/next-server/pages.runtime.dev.js" ***!

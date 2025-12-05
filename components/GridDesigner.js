@@ -209,6 +209,101 @@ export default function GridDesigner() {
     if (res.ok) { fetchProjects(); if (projectId === id) { setProjectId(null); setGrid({}); setProjectName('Untitled') } }
   }
 
+  async function exportPDF() {
+    const entries = Object.entries(grid)
+    if (entries.length === 0) { alert('Nothing to export'); return }
+
+    const coords = entries.map(([k]) => k.split(',').map(Number))
+    const xs = coords.map(c => c[0])
+    const ys = coords.map(c => c[1])
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const cols = maxX - minX + 1
+    const rows = maxY - minY + 1
+
+    // A4 dimensions in mm
+    const pageW = 210
+    const pageH = 297
+    const marginMM = 10
+    const availW = pageW - marginMM * 2
+    const availH = pageH - marginMM * 2
+
+    // choose cell size in mm to fit page
+    let cellMM = Math.min(availW / cols, availH / rows)
+    if (cellMM < 1) cellMM = 1
+
+    // render canvas with margins for numbering
+    const pxPerMM = 96 / 25.4
+    const cellPx = Math.ceil(cellMM * pxPerMM)
+    const marginLeftPx = Math.ceil(cellPx * 0.9)
+    const marginTopPx = Math.ceil(cellPx * 0.9)
+    const canvasW = marginLeftPx + cols * cellPx
+    const canvasH = marginTopPx + rows * cellPx
+
+    const c = document.createElement('canvas')
+    c.width = canvasW
+    c.height = canvasH
+    const ctx = c.getContext('2d')
+
+    // background
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, canvasW, canvasH)
+
+    // grid lines
+    ctx.strokeStyle = '#cccccc'
+    ctx.lineWidth = 1
+    for (let x = 0; x <= cols; x++) {
+      const px = marginLeftPx + x * cellPx
+      ctx.beginPath()
+      ctx.moveTo(px, marginTopPx)
+      ctx.lineTo(px, marginTopPx + rows * cellPx)
+      ctx.stroke()
+    }
+    for (let y = 0; y <= rows; y++) {
+      const py = marginTopPx + y * cellPx
+      ctx.beginPath()
+      ctx.moveTo(marginLeftPx, py)
+      ctx.lineTo(marginLeftPx + cols * cellPx, py)
+      ctx.stroke()
+    }
+
+    // numbering (1..n)
+    ctx.fillStyle = '#000'
+    const fontSize = Math.max(10, Math.floor(cellPx * 0.4))
+    ctx.font = `${fontSize}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (let x = 0; x < cols; x++) {
+      ctx.fillText(String(x + 1), marginLeftPx + x * cellPx + cellPx / 2, marginTopPx / 2)
+    }
+    ctx.textAlign = 'right'
+    for (let y = 0; y < rows; y++) {
+      ctx.fillText(String(y + 1), marginLeftPx / 2, marginTopPx + y * cellPx + cellPx / 2)
+    }
+
+    // draw cells
+    entries.forEach(([k, colVal]) => {
+      const [x, y] = k.split(',').map(Number)
+      const rx = marginLeftPx + (x - minX) * cellPx
+      const ry = marginTopPx + (y - minY) * cellPx
+      ctx.fillStyle = colVal
+      ctx.fillRect(rx + 1, ry + 1, cellPx - 2, cellPx - 2)
+    })
+
+    const imgData = c.toDataURL('image/jpeg', 1.0)
+    const { jsPDF } = await import('jspdf')
+    const imgWmm = (canvasW / pxPerMM)
+    const imgHmm = (canvasH / pxPerMM)
+    const orientation = imgWmm > imgHmm ? 'landscape' : 'portrait'
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation })
+    const x = (pageW - imgWmm) / 2
+    const y = (pageH - imgHmm) / 2
+    doc.addImage(imgData, 'JPEG', x, y, imgWmm, imgHmm)
+    doc.save(`${(projectName || 'untitled').replace(/\s+/g, '_')}.pdf`)
+  }
+
   function clearGrid() {
     setProjectId(null)
     setProjectName('Untitled')
@@ -226,6 +321,7 @@ export default function GridDesigner() {
         <button onClick={fitToContent}>Fit to Content</button>
         <button onClick={clearGrid}>New</button>
         <button onClick={saveProject}>{projectId ? 'Update' : 'Save'}</button>
+        <button onClick={() => exportPDF()}>{'Export PDF'}</button>
       </div>
 
       {projects.length > 0 && (
