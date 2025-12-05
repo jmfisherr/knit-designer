@@ -234,7 +234,10 @@ export default function GridDesigner() {
     if (projectId) {
       const res = await fetch(`/api/projects/${projectId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const json = await res.json()
-      alert('Updated: ' + json.id)
+      if (json && json.id && json.id !== projectId) {
+        setProjectId(json.id)
+      }
+      alert('Updated: ' + (json && json.id ? json.id : projectId))
     } else {
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const json = await res.json()

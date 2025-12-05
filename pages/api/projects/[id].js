@@ -20,8 +20,24 @@ export default function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    fs.writeFileSync(file, JSON.stringify(req.body, null, 2), 'utf8')
-    res.json({ id, message: 'Updated' })
+    // If the name changed, rename the file to keep filenames in sync with titles.
+    // Filename format is '<uniq>-<slug>.json' where uniq is the prefix (created at POST).
+    try {
+      const bodyName = req.body && req.body.name ? String(req.body.name) : null
+      const parts = id.split('-')
+      const uniq = parts[0]
+      const safe = bodyName ? bodyName.toLowerCase().replace(/[^a-z0-9-_ ]+/g, '').trim().replace(/\s+/g, '_').slice(0,80) : null
+      const newStem = safe ? `${uniq}-${safe || 'untitled'}` : id
+      const newFile = path.join(DATA_DIR, newStem + '.json')
+
+      fs.writeFileSync(newFile, JSON.stringify(req.body, null, 2), 'utf8')
+      if (newFile !== file && fs.existsSync(file)) {
+        try { fs.unlinkSync(file) } catch (e) { /* ignore */ }
+      }
+      res.json({ id: newStem, message: 'Updated' })
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to update' })
+    }
     return
   }
 
