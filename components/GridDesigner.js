@@ -6,6 +6,7 @@ export default function GridDesigner() {
   const [color, setColor] = useState('#000000')
   const [brush, setBrush] = useState(1)
   const [tool, setTool] = useState('brush') // 'brush' or 'eraser'
+  const [hoverCell, setHoverCell] = useState(null)
   const [projectId, setProjectId] = useState(null)
   const [projectName, setProjectName] = useState('Untitled')
   const [projects, setProjects] = useState([])
@@ -22,6 +23,23 @@ export default function GridDesigner() {
   // Load list of projects on mount
   useEffect(() => {
     fetchProjects()
+  }, [])
+
+  // Keyboard shortcuts: B = brush, E = eraser, [ = decrease brush, ] = increase brush
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'b' || e.key === 'B') {
+        setTool('brush')
+      } else if (e.key === 'e' || e.key === 'E') {
+        setTool('eraser')
+      } else if (e.key === '[') {
+        setBrush(b => Math.max(1, b - 1))
+      } else if (e.key === ']') {
+        setBrush(b => Math.min(16, b + 1))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   // Render canvas
@@ -70,7 +88,50 @@ export default function GridDesigner() {
       ctx.lineWidth = 0.5
       ctx.strokeRect(px, py, zoom - 1, zoom - 1)
     })
-  }, [grid, offsetX, offsetY, zoom])
+
+    // Hover preview (brush or eraser footprint)
+    if (hoverCell) {
+      const [hx, hy] = hoverCell
+      for (let dy = 0; dy < brush; dy++) {
+        for (let dx = 0; dx < brush; dx++) {
+          const x = hx + dx
+          const y = hy + dy
+          const px = x * zoom + offsetX
+          const py = y * zoom + offsetY
+          if (tool === 'eraser') {
+            ctx.fillStyle = 'rgba(255,255,255,0.6)'
+            ctx.fillRect(px + 0.5, py + 0.5, zoom - 1, zoom - 1)
+            ctx.strokeStyle = 'rgba(220,0,0,0.9)'
+            ctx.lineWidth = 1
+            ctx.strokeRect(px + 0.5, py + 0.5, zoom - 1, zoom - 1)
+          } else {
+            ctx.fillStyle = `${color}`
+            ctx.globalAlpha = 0.45
+            ctx.fillRect(px + 0.5, py + 0.5, zoom - 1, zoom - 1)
+            ctx.globalAlpha = 1
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)'
+            ctx.lineWidth = 0.8
+            ctx.strokeRect(px + 0.5, py + 0.5, zoom - 1, zoom - 1)
+          }
+        }
+      }
+    }
+  }, [grid, offsetX, offsetY, zoom, hoverCell, tool, color, brush])
+
+  // Ensure mouseup anywhere clears drawing and hover state (handles releases outside canvas)
+  useEffect(() => {
+    function onWindowMouseUp() {
+      isDrawing.current = false
+      panStart.current = null
+      setHoverCell(null)
+    }
+    window.addEventListener('mouseup', onWindowMouseUp)
+    window.addEventListener('touchend', onWindowMouseUp)
+    return () => {
+      window.removeEventListener('mouseup', onWindowMouseUp)
+      window.removeEventListener('touchend', onWindowMouseUp)
+    }
+  }, [])
 
   function applyBrush(x, y, col) {
     setGrid(prev => {
@@ -123,12 +184,19 @@ export default function GridDesigner() {
       const [x, y] = pixelToGrid(e.clientX, e.clientY)
       const col = tool === 'eraser' ? null : color
       applyBrush(x, y, col)
+      setHoverCell([x, y])
+    }
+    if (!isDrawing.current && !panStart.current) {
+      // Update hover cell when moving without drawing
+      const [hx, hy] = pixelToGrid(e.clientX, e.clientY)
+      setHoverCell([hx, hy])
     }
   }
 
   function handleMouseUp() {
     isDrawing.current = false
     panStart.current = null
+    setHoverCell(null)
   }
 
   function handleContextMenu(e) {
@@ -295,16 +363,51 @@ export default function GridDesigner() {
       ctx.fillRect(rx + 1, ry + 1, cellPx - 2, cellPx - 2)
     })
 
+    // Create image data from canvas
     const imgData = c.toDataURL('image/jpeg', 1.0)
     const { jsPDF } = await import('jspdf')
-    const imgWmm = (canvasW / pxPerMM)
-    const imgHmm = (canvasH / pxPerMM)
+
+    // Image size in mm at current pxPerMM
+    const imgWmm = canvasW / pxPerMM
+    const imgHmm = canvasH / pxPerMM
+
+    // Choose orientation based on image aspect
     const orientation = imgWmm > imgHmm ? 'landscape' : 'portrait'
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation })
-    const x = (pageW - imgWmm) / 2
-    const y = (pageH - imgHmm) / 2
-    doc.addImage(imgData, 'JPEG', x, y, imgWmm, imgHmm)
-    doc.save(`${(projectName || 'untitled').replace(/\s+/g, '_')}.pdf`)
+
+    // Get actual page size from doc (accounts for orientation)
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+
+    // Reserve space for a centered title at the top of the page
+    const titleText = (projectName || 'untitled')
+    const titleFontPt = 16
+    const ptToMm = 0.352778
+    const titleHeightMM = titleFontPt * ptToMm
+    const titleGapMM = 4 // spacing between title and image
+
+    // Available area after reserving margins and title area
+    const availWActual = pageWidth - marginMM * 2
+    const availHActual = pageHeight - marginMM * 2 - titleHeightMM - titleGapMM
+
+    // Determine scale to fit the available area
+    const scale = Math.min(availWActual / imgWmm, availHActual / imgHmm, 1)
+    const targetW = imgWmm * scale
+    const targetH = imgHmm * scale
+
+    // Draw title centered at top
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(titleFontPt)
+    const titleX = pageWidth / 2
+    const titleY = marginMM + titleHeightMM // baseline y
+    doc.text(titleText, titleX, titleY, { align: 'center' })
+
+    // Center image within the remaining area below the title
+    const x = marginMM + (availWActual - targetW) / 2
+    const y = marginMM + titleHeightMM + titleGapMM + (availHActual - targetH) / 2
+
+    doc.addImage(imgData, 'JPEG', x, y, targetW, targetH)
+    doc.save(`${titleText.replace(/\s+/g, '_')}.pdf`)
   }
 
   function clearGrid() {
