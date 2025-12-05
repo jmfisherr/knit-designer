@@ -10,10 +10,7 @@ export default function Home() {
         <title>Knit Designer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <main className="container">
-        <h1>Knit Designer</h1>
-        <GridDesigner />
-      </main>
+      <GridDesigner />
     </>
   )
 }
