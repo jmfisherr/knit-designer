@@ -5,6 +5,7 @@ export default function GridDesigner() {
   const [grid, setGrid] = useState({})
   const [color, setColor] = useState('#000000')
   const [brush, setBrush] = useState(1)
+  const [tool, setTool] = useState('brush') // 'brush' or 'eraser'
   const [projectId, setProjectId] = useState(null)
   const [projectName, setProjectName] = useState('Untitled')
   const [projects, setProjects] = useState([])
@@ -106,7 +107,8 @@ export default function GridDesigner() {
     // Left-click: draw
     isDrawing.current = true
     const [x, y] = pixelToGrid(e.clientX, e.clientY)
-    applyBrush(x, y, color)
+    const col = tool === 'eraser' ? null : color
+    applyBrush(x, y, col)
   }
 
   function handleMouseMove(e) {
@@ -119,7 +121,8 @@ export default function GridDesigner() {
     } else if (isDrawing.current) {
       // Drawing
       const [x, y] = pixelToGrid(e.clientX, e.clientY)
-      applyBrush(x, y, color)
+      const col = tool === 'eraser' ? null : color
+      applyBrush(x, y, col)
     }
   }
 
@@ -316,6 +319,16 @@ export default function GridDesigner() {
         <input type="text" placeholder="Project name" value={projectName} onChange={e => setProjectName(e.target.value)} />
         <label>Brush: <input type="number" value={brush} onChange={e => setBrush(Number(e.target.value))} min={1} max={8} /></label>
         <label>Color: <input type="color" value={color} onChange={e => setColor(e.target.value)} /></label>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            onClick={() => setTool('brush')}
+            style={{ background: tool === 'brush' ? '#0056b3' : '#007bff', color: 'white', padding: '6px 8px', borderRadius: 4 }}
+          >Brush</button>
+          <button
+            onClick={() => setTool('eraser')}
+            style={{ background: tool === 'eraser' ? '#d9534f' : '#ff6b6b', color: 'white', padding: '6px 8px', borderRadius: 4 }}
+          >Eraser</button>
+        </div>
         <label>Zoom: <input type="range" value={zoom} onChange={e => setZoom(Number(e.target.value))} min={5} max={100} style={{ width: '100px' }} /></label>
         <span>{zoom}px/cell</span>
         <button onClick={fitToContent}>Fit to Content</button>
@@ -346,7 +359,7 @@ export default function GridDesigner() {
         onMouseLeave={handleMouseUp}
         onContextMenu={handleContextMenu}
         onWheel={handleWheel}
-        style={{ flex: 1, background: '#f5f5f5', cursor: isDrawing.current ? 'crosshair' : 'grab' }}
+        style={{ flex: 1, background: '#f5f5f5', cursor: tool === 'eraser' ? 'cell' : 'crosshair' }}
       />
     </div>
   )
