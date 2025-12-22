@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
 
 export default function GridDesigner() {
   // Infinite canvas: sparse grid as { "x,y": "#color" }
@@ -20,10 +21,12 @@ export default function GridDesigner() {
   const canvasRef = useRef(null)
   const panStart = useRef(null)
 
-  // Load list of projects on mount
+  const { data: session } = useSession()
+
+  // Load list of projects on mount and when session changes
   useEffect(() => {
     fetchProjects()
-  }, [])
+  }, [session])
 
   // Keyboard shortcuts: B = brush, E = eraser, [ = decrease brush, ] = increase brush
   useEffect(() => {
@@ -231,15 +234,29 @@ export default function GridDesigner() {
   // Save/load: convert sparse grid to/from JSON
   async function saveProject() {
     const body = { grid, name: projectName }
+    if (!session) {
+      // prompt sign in
+      if (confirm('Sign in to save this project to your account?')) {
+        signIn()
+      }
+      return
+    }
+
     if (projectId) {
       const res = await fetch(`/api/projects/${projectId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const json = await res.json()
+      if (res.status === 401) {
+        alert('Please sign in to update this project')
+        signIn()
+        return
+      }
       if (json && json.id && json.id !== projectId) {
         setProjectId(json.id)
       }
       alert('Updated: ' + (json && json.id ? json.id : projectId))
     } else {
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (res.status === 401) { alert('Please sign in to save projects'); signIn(); return }
       const json = await res.json()
       setProjectId(json.id)
       alert('Saved: ' + json.id)
@@ -249,6 +266,11 @@ export default function GridDesigner() {
 
   async function fetchProjects() {
     const res = await fetch('/api/projects')
+    if (!res.ok) {
+      console.error('Failed to fetch projects', await res.text())
+      setProjects([])
+      return
+    }
     const json = await res.json()
     setProjects(json)
   }
@@ -280,6 +302,7 @@ export default function GridDesigner() {
   async function deleteProject(id) {
     if (!confirm('Delete this project?')) return
     const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' })
+    if (res.status === 401) { alert('Please sign in to delete projects'); signIn(); return }
     if (res.ok) { fetchProjects(); if (projectId === id) { setProjectId(null); setGrid({}); setProjectName('Untitled') } }
   }
 
@@ -441,6 +464,16 @@ export default function GridDesigner() {
         <button onClick={clearGrid}>New</button>
         <button onClick={saveProject}>{projectId ? 'Update' : 'Save'}</button>
         <button onClick={() => exportPDF()}>{'Export PDF'}</button>
+        <div style={{ marginLeft: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+          {session ? (
+            <>
+              <span style={{ fontSize: 12, color: '#333' }}>Signed in as {session.user.email}</span>
+              <button onClick={() => signOut()} style={{ padding: '6px 8px' }}>Sign out</button>
+            </>
+          ) : (
+            <button onClick={() => signIn()} style={{ padding: '6px 8px' }}>Sign in</button>
+          )}
+        </div>
       </div>
 
       {projects.length > 0 && (
