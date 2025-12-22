@@ -28,6 +28,20 @@ export default function GridDesigner() {
     fetchProjects()
   }, [session])
 
+  function formatProjectDisplayName(id, name) {
+    // If a user-friendly name exists and isn't just the id, prefer it
+    if (name && name !== id) return name
+    // Otherwise try to derive a readable name from the filename stem: '<uniq>-<slug>'
+    if (!id) return 'untitled'
+    const parts = String(id).split('-')
+    if (parts.length <= 1) return id
+    const slug = parts.slice(1).join('-')
+    // convert underscores to spaces and trim
+    const decoded = slug.replace(/_/g, ' ').trim()
+    // capitalize first letter of each word for nicer display
+    return decoded.split(' ').map(w => w ? (w[0].toUpperCase() + w.slice(1)) : w).join(' ')
+  }
+
   // Keyboard shortcuts: B = brush, E = eraser, [ = decrease brush, ] = increase brush
   useEffect(() => {
     function onKey(e) {
@@ -482,7 +496,7 @@ export default function GridDesigner() {
           <ul>
             {projects.map(p => (
               <li key={p.id}>
-                <button onClick={() => loadProject(p.id)}>{p.name || p.id}</button>
+                <button onClick={() => loadProject(p.id)}>{formatProjectDisplayName(p.id)}</button>
                 <button onClick={() => deleteProject(p.id)}>Delete</button>
               </li>
             ))}
