@@ -1,9 +1,10 @@
 import dynamic from 'next/dynamic'
 import Head from 'next/head'
+import type { NextPage } from 'next'
 
 const GridDesigner = dynamic(() => import('../components/GridDesigner'), { ssr: false })
 
-export default function Home() {
+const Home: NextPage = () => {
   return (
     <>
       <Head>
@@ -14,3 +15,5 @@ export default function Home() {
     </>
   )
 }
+
+export default Home

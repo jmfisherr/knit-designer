@@ -1,11 +1,12 @@
 import fs from 'fs'
 import path from 'path'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data', 'projects')
 
-function ensureDir(dir) {
+function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 }
 
@@ -13,13 +14,16 @@ function sanitizeName(name = '') {
   return String(name).toLowerCase().replace(/[^a-z0-9-_ ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80) || 'untitled'
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   ensureDir(DATA_DIR)
   const session = await getServerSession(req, res, authOptions)
 
   if (req.method === 'POST') {
     if (!session) return res.status(401).json({ error: 'Authentication required' })
-    const userDir = path.join(DATA_DIR, sanitizeName(session.user.email || session.user.name || session.user.sub))
+    // `session.user` type (from next-auth) doesn't include `id` by default in types,
+    // so cast to `any` when accessing it to avoid TypeScript errors while still
+    // using `id` at runtime when present (Prisma adapter adds it).
+    const userDir = path.join(DATA_DIR, sanitizeName(session.user?.email || session.user?.name || (session.user as any)?.id || 'user'))
     ensureDir(userDir)
     const id = Date.now().toString(36)
     const name = (req.body && req.body.name) ? String(req.body.name) : 'untitled'
@@ -31,8 +35,6 @@ export default async function handler(req, res) {
     return
   }
 
-  // GET: list projects
-  // If not authenticated, list top-level projects (legacy/public)
   if (!session) {
     const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.json'))
     const list = files.map(f => ({ id: f.replace(/\.json$/, ''), name: f }))
@@ -40,7 +42,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const userDir = path.join(DATA_DIR, sanitizeName(session.user.email || session.user.name || session.user.sub))
+  const userDir = path.join(DATA_DIR, sanitizeName(session.user?.email || session.user?.name || (session.user as any)?.id || 'user'))
   ensureDir(userDir)
   const files = fs.readdirSync(userDir).filter(f => f.endsWith('.json'))
   const list = files.map(f => {

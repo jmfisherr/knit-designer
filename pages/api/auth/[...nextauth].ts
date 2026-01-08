@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth'
+import NextAuth, { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import EmailProvider from 'next-auth/providers/email'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
@@ -6,13 +6,7 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// NOTE:
-// - Email (magic link) sign-in requires a database adapter (e.g. Prisma) and
-//   appropriate env vars (DATABASE_URL) before enabling. To keep the demo
-//   lightweight we only enable Google OAuth by default. See README for steps
-//   to enable Email sign-in with an adapter.
-
-const providers = []
+const providers = [] as any[]
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.push(GoogleProvider({
     clientId: process.env.GOOGLE_CLIENT_ID,
@@ -20,17 +14,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   }))
 }
 
-// Enable Email provider only when EMAIL_SERVER + DATABASE_URL are present
 if (process.env.EMAIL_SERVER && process.env.DATABASE_URL) {
   providers.push(EmailProvider({
     server: process.env.EMAIL_SERVER,
     from: process.env.EMAIL_FROM,
-    // Custom send function logs Ethereal preview URL when available
     async sendVerificationRequest({ identifier: email, url, provider, token }) {
-      // debug: log that we were called
       console.log('[nextauth][email] sendVerificationRequest for', email)
       const nodemailer = await import('nodemailer')
-      const transport = nodemailer.createTransport(provider.server)
+      const transport = nodemailer.createTransport(provider.server as any)
       let result
       try {
         result = await transport.sendMail({
@@ -45,7 +36,6 @@ if (process.env.EMAIL_SERVER && process.env.DATABASE_URL) {
         throw err
       }
 
-      // Log preview url for Ethereal and write the URL to a local file
       try {
         const preview = nodemailer.getTestMessageUrl(result)
         if (preview) console.log('[nextauth][email] preview:', preview)
@@ -61,17 +51,15 @@ if (process.env.EMAIL_SERVER && process.env.DATABASE_URL) {
   }))
 }
 
-// Debugging info (printed on server startup)
-try {
-  // eslint-disable-next-line no-console
-  console.log('[nextauth] providers configured:', { google: !!(process.env.GOOGLE_CLIENT_ID), emailServer: !!process.env.EMAIL_SERVER, database: !!process.env.DATABASE_URL })
-} catch (e) {}
-
-export const authOptions = {
-  providers,
+export const authOptions: NextAuthOptions = {
+  providers: providers as any,
   adapter: process.env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET,
 }
+
+try {
+  console.log('[nextauth] providers configured:', { google: !!process.env.GOOGLE_CLIENT_ID, emailServer: !!process.env.EMAIL_SERVER, database: !!process.env.DATABASE_URL })
+} catch (e) {}
 
 export default NextAuth(authOptions)
