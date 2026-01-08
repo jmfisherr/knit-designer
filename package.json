@@ -24,8 +24,11 @@
     "@types/react": "^18.2.0",
     "@types/node": "^20.4.2",
     "@types/react-dom": "^18.2.0"
-  }
+  },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "create-test-env": "ts-node scripts/create_test_env.ts",
     "get-latest-verification-token": "ts-node scripts/get_latest_verification_token.ts",
     "run-prisma-db-push": "ts-node scripts/run_prisma_db_push.ts"
