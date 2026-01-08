@@ -290,8 +290,114 @@ export default function GridDesigner(): JSX.Element {
   async function exportPDF() {
     const entries = Object.entries(grid)
     if (entries.length === 0) { alert('Nothing to export'); return }
-    // Keep simple: reuse existing logic from JS version (omitted here for brevity)
-    alert('Export PDF: not yet implemented in TSX (coming soon)')
+
+    const coords = entries.map(([k]) => k.split(',').map(Number))
+    const xs = coords.map(c => c[0])
+    const ys = coords.map(c => c[1])
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const cols = maxX - minX + 1
+    const rows = maxY - minY + 1
+
+    // A4 mm
+    const pageW = 210
+    const pageH = 297
+    const marginMM = 10
+    const availW = pageW - marginMM * 2
+    const availH = pageH - marginMM * 2
+
+    let cellMM = Math.min(availW / cols, availH / rows)
+    if (cellMM < 1) cellMM = 1
+
+    const pxPerMM = 96 / 25.4
+    const cellPx = Math.ceil(cellMM * pxPerMM)
+    const marginLeftPx = Math.ceil(cellPx * 0.9)
+    const marginTopPx = Math.ceil(cellPx * 0.9)
+    const canvasW = marginLeftPx + cols * cellPx
+    const canvasH = marginTopPx + rows * cellPx
+
+    const c = document.createElement('canvas')
+    c.width = canvasW
+    c.height = canvasH
+    const ctx = c.getContext('2d')!
+
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, canvasW, canvasH)
+
+    ctx.strokeStyle = '#cccccc'
+    ctx.lineWidth = 1
+    for (let x = 0; x <= cols; x++) {
+      const px = marginLeftPx + x * cellPx
+      ctx.beginPath()
+      ctx.moveTo(px, marginTopPx)
+      ctx.lineTo(px, marginTopPx + rows * cellPx)
+      ctx.stroke()
+    }
+    for (let y = 0; y <= rows; y++) {
+      const py = marginTopPx + y * cellPx
+      ctx.beginPath()
+      ctx.moveTo(marginLeftPx, py)
+      ctx.lineTo(marginLeftPx + cols * cellPx, py)
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = '#000'
+    const fontSize = Math.max(10, Math.floor(cellPx * 0.4))
+    ctx.font = `${fontSize}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (let x = 0; x < cols; x++) {
+      ctx.fillText(String(x + 1), marginLeftPx + x * cellPx + cellPx / 2, marginTopPx / 2)
+    }
+    ctx.textAlign = 'right'
+    for (let y = 0; y < rows; y++) {
+      ctx.fillText(String(y + 1), marginLeftPx / 2, marginTopPx + y * cellPx + cellPx / 2)
+    }
+
+    entries.forEach(([k, colVal]) => {
+      const [x, y] = k.split(',').map(Number)
+      const rx = marginLeftPx + (x - minX) * cellPx
+      const ry = marginTopPx + (y - minY) * cellPx
+      ctx.fillStyle = colVal
+      ctx.fillRect(rx + 1, ry + 1, cellPx - 2, cellPx - 2)
+    })
+
+    const imgData = c.toDataURL('image/jpeg', 1.0)
+    const { jsPDF } = await import('jspdf')
+
+    const imgWmm = canvasW / pxPerMM
+    const imgHmm = canvasH / pxPerMM
+    const orientation = imgWmm > imgHmm ? 'landscape' : 'portrait'
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+
+    const titleText = (projectName || 'untitled')
+    const titleFontPt = 16
+    const ptToMm = 0.352778
+    const titleHeightMM = titleFontPt * ptToMm
+    const titleGapMM = 4
+
+    const availWActual = pageWidth - marginMM * 2
+    const availHActual = pageHeight - marginMM * 2 - titleHeightMM - titleGapMM
+
+    const scale = Math.min(availWActual / imgWmm, availHActual / imgHmm, 1)
+    const targetW = imgWmm * scale
+    const targetH = imgHmm * scale
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(titleFontPt)
+    const titleX = pageWidth / 2
+    const titleY = marginMM + titleHeightMM
+    doc.text(titleText, titleX, titleY, { align: 'center' })
+
+    const x = marginMM + (availWActual - targetW) / 2
+    const y = marginMM + titleHeightMM + titleGapMM + (availHActual - targetH) / 2
+    doc.addImage(imgData, 'JPEG', x, y, targetW, targetH)
+    doc.save(`${titleText.replace(/\s+/g, '_')}.pdf`)
   }
 
   return (
@@ -306,10 +412,10 @@ export default function GridDesigner(): JSX.Element {
         </div>
         <label>Zoom: <input type="range" value={zoom} onChange={e => setZoom(Number(e.target.value))} min={5} max={100} style={{ width: '100px' }} /></label>
         <span>{zoom}px/cell</span>
-        <button onClick={() => { /* fitToContent placeholder */ }}>Fit to Content</button>
+        <button onClick={() => { fitToContent() }}>Fit to Content</button>
         <button onClick={() => { setProjectId(null); setProjectName('Untitled'); setGrid({}) }}>New</button>
-        <button onClick={() => { /* saveProject placeholder */ }}>{projectId ? 'Update' : 'Save'}</button>
-        <button onClick={() => { /* exportPDF placeholder */ }}>{'Export PDF'}</button>
+        <button onClick={() => { saveProject() }}>{projectId ? 'Update' : 'Save'}</button>
+        <button onClick={() => { exportPDF() }}>{'Export PDF'}</button>
         <div style={{ marginLeft: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
           {session ? (
             <>
@@ -328,15 +434,27 @@ export default function GridDesigner(): JSX.Element {
           <ul>
             {projects.map(p => (
               <li key={p.id}>
-                <button onClick={() => {/* loadProject placeholder */ }}>{formatProjectDisplayName(p.id, p.name)}</button>
-                <button onClick={() => {/* deleteProject placeholder */ }}>Delete</button>
+                <button onClick={() => loadProject(p.id)}>{formatProjectDisplayName(p.id, p.name)}</button>
+                <button onClick={() => deleteProject(p.id)}>Delete</button>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <canvas ref={canvasRef} style={{ flex: 1, background: '#f5f5f5', cursor: tool === 'eraser' ? 'cell' : 'crosshair' }} />
+      <canvas
+        ref={canvasRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onContextMenu={handleContextMenu}
+        onWheel={handleWheel}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
+        style={{ flex: 1, background: '#f5f5f5', cursor: tool === 'eraser' ? 'cell' : 'crosshair' }}
+      />
     </div>
   )
 }
