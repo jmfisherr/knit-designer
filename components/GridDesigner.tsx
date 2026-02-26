@@ -313,7 +313,12 @@ export default function GridDesigner(): JSX.Element {
 
     const pxPerMM = 96 / 25.4
     const cellPx = Math.ceil(cellMM * pxPerMM)
-    const marginLeftPx = Math.ceil(cellPx * 0.9)
+    
+    // Calculate margin based on row count (up to 4 digits: 1-9999 rows)
+    const rowDigits = Math.ceil(Math.log10(Math.max(rows + 1, 10))) // at least 1 digit
+    const fontSize = Math.max(10, Math.floor(cellPx * 0.4))
+    // Estimate digit width as ~60% of font size, with padding
+    const marginLeftPx = Math.ceil(rowDigits * fontSize * 0.65 + cellPx * 0.5)
     const marginTopPx = Math.ceil(cellPx * 0.9)
     const canvasW = marginLeftPx + cols * cellPx
     const canvasH = marginTopPx + rows * cellPx
@@ -344,7 +349,6 @@ export default function GridDesigner(): JSX.Element {
     }
 
     ctx.fillStyle = '#000'
-    const fontSize = Math.max(10, Math.floor(cellPx * 0.4))
     ctx.font = `${fontSize}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
