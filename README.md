@@ -3,10 +3,10 @@
 Local Next.js scaffold for designing knitwear patterns on a grid.
 
 Example exported PDF:
-![Example of pdf chart export from application](/public/export-thumbnail.png)
+<img src="/public/export-thumbnail.png" alt="Example of pdf chart export from application" width="350"/>
 
 Example knit from exported chart:
-![Example of actual knit project using a chart exported from the application](/public/example-knit.jpeg)
+<img src="/public/example-knit.jpeg" alt="Example of actual knit project using a chart exported from the application" width="350"/>
 
 Getting started:
 
