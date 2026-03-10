@@ -2,6 +2,8 @@
 
 Local Next.js scaffold for designing knitwear patterns on a grid.
 
+Deployed testing URL: https://knit-designer.vercel.app/
+
 Example exported PDF:<br>
 <img src="/public/export-thumbnail.png" alt="Example of pdf chart export from application" width="350"/>
 

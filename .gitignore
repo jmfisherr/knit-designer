@@ -30,3 +30,4 @@ data/projects/**
 # Misc
 coverage/
 *.tgz
+.vercel
