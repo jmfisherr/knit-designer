@@ -1,10 +1,21 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import EmailProvider from 'next-auth/providers/email'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+let PrismaAdapter: any = undefined
+let prisma: any = undefined
+
+// Only import Prisma-related code if DATABASE_URL is set
+if (process.env.DATABASE_URL) {
+  try {
+    const { PrismaAdapter: ImportedPrismaAdapter } = require('@next-auth/prisma-adapter')
+    const { PrismaClient } = require('@prisma/client')
+    PrismaAdapter = ImportedPrismaAdapter
+    prisma = new PrismaClient()
+  } catch (error) {
+    console.error('[nextauth] Failed to initialize Prisma:', error)
+  }
+}
 
 const providers = [] as any[]
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -53,7 +64,7 @@ if (process.env.EMAIL_SERVER && process.env.DATABASE_URL) {
 
 export const authOptions: NextAuthOptions = {
   providers: providers as any,
-  adapter: process.env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
+  adapter: prisma && PrismaAdapter ? PrismaAdapter(prisma) : undefined,
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET,
 }
@@ -66,6 +77,8 @@ if (process.env.VERCEL_URL && !process.env.NEXTAUTH_URL) {
 try {
   console.log('[nextauth] providers configured:', { google: !!process.env.GOOGLE_CLIENT_ID, emailServer: !!process.env.EMAIL_SERVER, database: !!process.env.DATABASE_URL })
   console.log('[nextauth] NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
+  console.log('[nextauth] VERCEL_URL:', process.env.VERCEL_URL)
+  console.log('[nextauth] Prisma available:', !!prisma)
 } catch (e) {}
 
 export default NextAuth(authOptions)

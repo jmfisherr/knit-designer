@@ -58,9 +58,14 @@ Vercel Deployment Setup
    - `NEXTAUTH_SECRET`: (same as local)
    - `GOOGLE_CLIENT_ID`: (from Google Cloud Console)
    - `GOOGLE_CLIENT_SECRET`: (from Google Cloud Console)
-   - `DATABASE_URL`: (if using database features)
-   - `EMAIL_SERVER`: (if using email auth)
-   - `EMAIL_FROM`: (if using email auth)
+   - `DATABASE_URL`: (optional - remove if you don't want database-backed sessions)
+
+Debug Steps for Production Issues
+---------------------------------
+1. Check environment variables: Visit `https://knit-designer.vercel.app/api/debug/env`
+2. Check auth providers: Visit `https://knit-designer.vercel.app/api/auth/providers`
+3. Check Vercel function logs in the Vercel dashboard
+4. If you see database errors, try removing `DATABASE_URL` from Vercel environment variables (the app uses file storage for projects)
 
 Email (magic link) setup
 ------------------------
