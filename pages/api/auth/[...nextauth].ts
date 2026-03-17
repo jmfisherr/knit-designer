@@ -58,8 +58,14 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
+// Set NEXTAUTH_URL dynamically for Vercel
+if (process.env.VERCEL_URL && !process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`
+}
+
 try {
   console.log('[nextauth] providers configured:', { google: !!process.env.GOOGLE_CLIENT_ID, emailServer: !!process.env.EMAIL_SERVER, database: !!process.env.DATABASE_URL })
+  console.log('[nextauth] NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
 } catch (e) {}
 
 export default NextAuth(authOptions)

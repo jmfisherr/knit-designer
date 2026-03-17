@@ -1,1 +1,1 @@
-http://localhost:3000/api/auth/callback/email?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2F&token=a54a22a688b41853a43098228c7698b344c1bd2c2aa30881135572a2e9095717&email=jmfisherr%40gmail.com
+http://localhost:3000/api/auth/callback/email?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2F&token=23976461505b9ac9ad6aac87f195a79202c4c1603538eff7133303efce99cadf&email=jmfisherr%40gmail.com

@@ -31,6 +31,37 @@ Required environment variables (local development):
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — for Google OAuth (optional)
 - `EMAIL_SERVER` and `EMAIL_FROM` — SMTP server info for email magic link (optional)
 
+For Vercel deployment, set these environment variables in your Vercel project settings:
+
+- `NEXTAUTH_URL` — your deployed URL (e.g. `https://knit-designer.vercel.app`)
+- `NEXTAUTH_SECRET` — same as local
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — same as local
+- `DATABASE_URL` — if using database features
+
+Google OAuth Setup
+------------------
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable Google+ API
+4. Create OAuth 2.0 credentials
+5. Add authorized redirect URIs:
+   - For local: `http://localhost:3000/api/auth/callback/google`
+   - For production: `https://knit-designer.vercel.app/api/auth/callback/google`
+6. Copy Client ID and Client Secret to environment variables
+
+Vercel Deployment Setup
+-----------------------
+1. Push your code to GitHub
+2. Connect your GitHub repo to Vercel
+3. In Vercel project settings, add these environment variables:
+   - `NEXTAUTH_URL`: `https://knit-designer.vercel.app`
+   - `NEXTAUTH_SECRET`: (same as local)
+   - `GOOGLE_CLIENT_ID`: (from Google Cloud Console)
+   - `GOOGLE_CLIENT_SECRET`: (from Google Cloud Console)
+   - `DATABASE_URL`: (if using database features)
+   - `EMAIL_SERVER`: (if using email auth)
+   - `EMAIL_FROM`: (if using email auth)
+
 Email (magic link) setup
 ------------------------
 If you want email sign-in (magic links), NextAuth requires a database adapter (we recommend Prisma + SQLite for local dev). Steps:
