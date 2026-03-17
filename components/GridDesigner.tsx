@@ -20,10 +20,18 @@ export default function GridDesigner(): JSX.Element {
   const isDrawing = useRef(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const panStart = useRef<any>(null)
+  const isSpacePressed = useRef(false)
 
   const { data: session } = useSession()
 
   useEffect(() => { fetchProjects() }, [session])
+
+  // Cleanup cursor on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = ''
+    }
+  }, [])
 
   async function fetchProjects() {
     try {
@@ -51,16 +59,33 @@ export default function GridDesigner(): JSX.Element {
     return decoded.split(' ').map(w => w ? (w[0].toUpperCase() + w.slice(1)) : w).join(' ')
   }
 
-  // Keyboard shortcuts: B = brush, E = eraser, [ = decrease brush, ] = increase brush
+  // Keyboard shortcuts: B = brush, E = eraser, [ = decrease brush, ] = increase brush, Space = pan
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'b' || e.key === 'B') setTool('brush')
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault()
+        isSpacePressed.current = true
+        document.body.style.cursor = 'grab'
+      } else if (e.key === 'b' || e.key === 'B') setTool('brush')
       else if (e.key === 'e' || e.key === 'E') setTool('eraser')
       else if (e.key === '[') setBrush(b => Math.max(1, b - 1))
       else if (e.key === ']') setBrush(b => Math.min(64, b + 1))
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        isSpacePressed.current = false
+        document.body.style.cursor = ''
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [])
 
   // Canvas rendering
@@ -144,6 +169,11 @@ export default function GridDesigner(): JSX.Element {
       isDrawing.current = false
       panStart.current = null
       setHoverCell(null)
+      if (isSpacePressed.current) {
+        document.body.style.cursor = 'grab'
+      } else {
+        document.body.style.cursor = ''
+      }
     }
     window.addEventListener('mouseup', onWindowUp)
     window.addEventListener('touchend', onWindowUp)
@@ -179,31 +209,40 @@ export default function GridDesigner(): JSX.Element {
     const clientX = isTouch ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX
     const clientY = isTouch ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY
     const button = isTouch ? 0 : (e as React.MouseEvent).button
-    if (button === 2) {
+
+    // Start panning if spacebar is pressed or right mouse button
+    if (isSpacePressed.current || button === 2) {
+      e.preventDefault()
       panStart.current = { x: clientX, y: clientY, offsetX, offsetY }
+      document.body.style.cursor = 'grabbing'
       return
     }
-    isDrawing.current = true
-    const [x, y] = pixelToGrid(clientX, clientY)
-    const col = tool === 'eraser' ? null : color
-    applyBrush(x, y, col)
+
+    // Only allow drawing if spacebar is not pressed
+    if (!isSpacePressed.current) {
+      isDrawing.current = true
+      const [x, y] = pixelToGrid(clientX, clientY)
+      const col = tool === 'eraser' ? null : color
+      applyBrush(x, y, col)
+    }
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     const isTouch = (e as React.TouchEvent).touches !== undefined
     const clientX = isTouch ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX
     const clientY = isTouch ? (e as React.TouchEvent).touches[0].clientY : (e as React.MouseEvent).clientY
+
     if (panStart.current) {
       const dx = clientX - panStart.current.x
       const dy = clientY - panStart.current.y
       setOffsetX(panStart.current.offsetX + dx)
       setOffsetY(panStart.current.offsetY + dy)
-    } else if (isDrawing.current) {
+    } else if (isDrawing.current && !isSpacePressed.current) {
       const [x, y] = pixelToGrid(clientX, clientY)
       const col = tool === 'eraser' ? null : color
       applyBrush(x, y, col)
       setHoverCell([x, y])
-    } else {
+    } else if (!isSpacePressed.current) {
       const [hx, hy] = pixelToGrid(clientX, clientY)
       setHoverCell([hx, hy])
     }
@@ -213,6 +252,11 @@ export default function GridDesigner(): JSX.Element {
     isDrawing.current = false
     panStart.current = null
     setHoverCell(null)
+    if (isSpacePressed.current) {
+      document.body.style.cursor = 'grab'
+    } else {
+      document.body.style.cursor = ''
+    }
   }
 
   function handleContextMenu(e: React.MouseEvent) {
